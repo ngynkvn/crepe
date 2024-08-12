@@ -28,42 +28,14 @@ func New() (*Indexer, error) {
 	}, nil
 }
 
-func (ix Indexer) Serve() error {
-	log := zap.S()
-	srv := http.NewServeMux()
-	ix.db.Mount(srv)
-	log.Info("starting server")
-	return http.ListenAndServe(":8080", srv)
-}
-
-func getLanguage(ext string) (*sitter.Language, error) {
-	switch ext {
-	case ".go":
-		return golang.GetLanguage(), nil
-	default:
-		return nil, errors.New("unknown file extension")
-	}
-}
-
-var allowedGoTypes = []string{
-	"func_literal",
-	"identifier",
-	"interpreted_string_literal",
-	"import_spec",
-	"package_clause",
-	"type_identifier",
-}
-
 func (ix Indexer) AddFile(f *object.File) error {
 	log := zap.S().With("pkg", "crepe/index")
 	ext := filepath.Ext(f.Name)
 
-	language, err := getLanguage(ext)
+	parser, err := getTreesitterParser(ext)
 	if err != nil {
 		return err
 	}
-	parser := sitter.NewParser()
-	parser.SetLanguage(language)
 	contents, err := f.Contents()
 	if err != nil {
 		return err
@@ -77,25 +49,20 @@ func (ix Indexer) AddFile(f *object.File) error {
 	log.Debug(tree.RootNode())
 	// Walk the tree and add all nodes that are of a type that we want to index
 	walk(tree.RootNode(), (func(n *sitter.Node) {
-		if slices.Contains(allowedGoTypes, n.Type()) {
+		// TODO: slice should be determined by extension
+		if slices.Contains(allowedGoNodeTypes, n.Type()) {
 			ix.db.AddFile(f.Name, n.Type(), ext, n.Content([]byte(contents)))
 		}
 	}))
 	return nil
 }
 
-func walk(n *sitter.Node, f func(n *sitter.Node)) {
-	f(n)
-	for i := uint32(0); i < n.NamedChildCount(); i++ {
-		walk(n.NamedChild(int(i)), f)
-	}
-}
-
 func (ix Indexer) AddRepo(path string) error {
-	log := zap.S().With("pkg", "crepe/index")
+	log := zap.S()
 	log.With("path", path).Info("checking path")
 	// Check that path is valid git repository
 	// It is either a url to a git repo, or it is a local path.
+	// TODO: add support for link to github repos
 	repo, err := git.PlainOpen(path)
 	if err != nil {
 		log.Error(err)
@@ -109,14 +76,7 @@ func (ix Indexer) AddRepo(path string) error {
 	}
 	// Iterate over all files in the repository
 	// and add them to the slice
-	var files []*object.File
-	err = treeObjects.ForEach(func(t *object.Tree) error {
-		return t.Files().ForEach(func(f *object.File) error {
-			log.With("file", f).Info("")
-			files = append(files, f)
-			return nil
-		})
-	})
+	files, err := getAllObjectFiles(treeObjects)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -124,8 +84,62 @@ func (ix Indexer) AddRepo(path string) error {
 
 	// Iterate over all files and add them to the index
 	for _, f := range files {
-		log.With("path", path, "file", f.Name).Info("")
+		log.With("path", path, "file", f.Name).Info("adding file to index")
 		ix.AddFile(f)
 	}
 	return nil
+}
+
+func (ix Indexer) Serve() error {
+	log := zap.S()
+	srv := http.NewServeMux()
+	ix.db.Mount(srv)
+	log.Info("starting server")
+	return http.ListenAndServe(":8080", srv)
+}
+
+func getAllObjectFiles(treeObjects *object.TreeIter) ([]*object.File, error) {
+	var files []*object.File
+	err := treeObjects.ForEach(func(t *object.Tree) error {
+		return t.Files().ForEach(func(f *object.File) error {
+			files = append(files, f)
+			return nil
+		})
+	})
+	return files, err
+}
+
+var allowedGoNodeTypes = []string{
+	"func_literal",
+	"identifier",
+	"interpreted_string_literal",
+	"import_spec",
+	"package_clause",
+	"type_identifier",
+}
+
+func getTreesitterParser(ext string) (*sitter.Parser, error) {
+	language, err := getLanguage(ext)
+	if err != nil {
+		return nil, err
+	}
+	parser := sitter.NewParser()
+	parser.SetLanguage(language)
+	return parser, nil
+}
+
+func getLanguage(ext string) (*sitter.Language, error) {
+	switch ext {
+	case ".go":
+		return golang.GetLanguage(), nil
+	default:
+		return nil, errors.New("unknown file extension")
+	}
+}
+
+func walk(n *sitter.Node, f func(n *sitter.Node)) {
+	f(n)
+	for i := uint32(0); i < n.NamedChildCount(); i++ {
+		walk(n.NamedChild(int(i)), f)
+	}
 }

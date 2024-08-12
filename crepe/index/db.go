@@ -31,11 +31,17 @@ func initDB(conn *sqlx.DB) {
 	// TODO: make this a proper migration system
 	conn.MustExec(`
 		DROP TABLE IF EXISTS tokens;
+		DROP TABLE IF EXISTS named_node_types;
+
 		CREATE TABLE tokens (
 			filename TEXT,
 			type TEXT,
 			language TEXT,
 			contents TEXT 
+		);
+		CREATE TABLE named_node_types (
+			name TEXT,
+			ext TEXT
 		);
 	`)
 }
