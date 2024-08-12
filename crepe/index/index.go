@@ -3,6 +3,7 @@ package index
 import (
 	"context"
 	"errors"
+	"net/http"
 	"path/filepath"
 	"slices"
 
@@ -17,7 +18,7 @@ type Indexer struct {
 	db *DB
 }
 
-func Start() (*Indexer, error) {
+func New() (*Indexer, error) {
 	db, err := NewDB()
 	if err != nil {
 		return nil, err
@@ -25,6 +26,14 @@ func Start() (*Indexer, error) {
 	return &Indexer{
 		db,
 	}, nil
+}
+
+func (ix Indexer) Serve() error {
+	log := zap.S()
+	srv := http.NewServeMux()
+	ix.db.Mount(srv)
+	log.Info("starting server")
+	return http.ListenAndServe(":8080", srv)
 }
 
 func getLanguage(ext string) (*sitter.Language, error) {
@@ -69,14 +78,7 @@ func (ix Indexer) AddFile(f *object.File) error {
 	// Walk the tree and add all nodes that are of a type that we want to index
 	walk(tree.RootNode(), (func(n *sitter.Node) {
 		if slices.Contains(allowedGoTypes, n.Type()) {
-			ix.db.MustExec(`
-			INSERT INTO tokens (id, filename, type, language, contents) 
-			VALUES (nextval('tokens_id_seq'),?, ?, ?, ?)`,
-				f.Name,
-				n.Type(),
-				ext,
-				n.Content([]byte(contents)),
-			)
+			ix.db.AddFile(f.Name, n.Type(), ext, n.Content([]byte(contents)))
 		}
 	}))
 	return nil

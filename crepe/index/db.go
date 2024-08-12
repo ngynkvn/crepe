@@ -2,10 +2,11 @@ package index
 
 import (
 	"database/sql"
+	"encoding/json"
+	"net/http"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/marcboeker/go-duckdb"
-	_ "github.com/marcboeker/go-duckdb"
 )
 
 // TODO: make this a proper interface
@@ -30,17 +31,55 @@ func initDB(conn *sqlx.DB) {
 	// TODO: make this a proper migration system
 	conn.MustExec(`
 		DROP TABLE IF EXISTS tokens;
-		DROP SEQUENCE IF EXISTS tokens_id_seq;
 		CREATE TABLE tokens (
-			id INTEGER PRIMARY KEY,
 			filename TEXT,
 			type TEXT,
 			language TEXT,
 			contents TEXT 
 		);
-
-		CREATE SEQUENCE tokens_id_seq;
 	`)
+}
+
+func (db *DB) AddFile(filename string, nodetype string, ext string, contents string) error {
+	_, err := db.Exec(`
+			INSERT INTO tokens (filename, type, language, contents) 
+			VALUES (?, ?, ?, ?)`,
+		filename,
+		nodetype,
+		ext,
+		contents,
+	)
+	return err
+}
+
+func writeJSON(w http.ResponseWriter, data interface{}) error {
+	bytes, err := json.Marshal(data)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(bytes)
+	return nil
+}
+
+func (db *DB) tokens(w http.ResponseWriter, r *http.Request) {
+	type TokenJSON struct {
+		Filename string `json:"filename"`
+		Type     string `json:"type"`
+		Language string `json:"language"`
+		Contents string `json:"contents"`
+	}
+	var tokens []TokenJSON
+	db.Select(&tokens, "SELECT * FROM tokens")
+
+	writeJSON(w, tokens)
+}
+
+func (db *DB) Mount(srv *http.ServeMux) *http.ServeMux {
+	srv.HandleFunc("GET /tokens", db.tokens)
+	return srv
 }
 
 // TODO: make this configurable on what indexer selects to parse from tree-sitter grammar.

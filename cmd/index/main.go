@@ -16,9 +16,10 @@ func main() {
 	zap.ReplaceGlobals(zap.Must(cfg.Build()))
 	atom.SetLevel(zap.DebugLevel)
 
-	ix, err := index.Start()
+	ix, err := index.New()
 	if err != nil {
 		panic(err)
 	}
 	ix.AddRepo(".")
+	ix.Serve()
 }
