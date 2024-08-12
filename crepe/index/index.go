@@ -66,6 +66,7 @@ func (ix Indexer) AddFile(f *object.File) error {
 	}
 	log.Debug(contents)
 	log.Debug(tree.RootNode())
+	// Walk the tree and add all nodes that are of a type that we want to index
 	walk(tree.RootNode(), (func(n *sitter.Node) {
 		if slices.Contains(allowedGoTypes, n.Type()) {
 			ix.db.MustExec(`
@@ -73,7 +74,7 @@ func (ix Indexer) AddFile(f *object.File) error {
 			VALUES (nextval('tokens_id_seq'),?, ?, ?, ?)`,
 				f.Name,
 				n.Type(),
-				"TODO",
+				ext,
 				n.Content([]byte(contents)),
 			)
 		}
