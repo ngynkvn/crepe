@@ -4,6 +4,8 @@ import (
 	"os"
 
 	"github.com/ngynkvn/crepe/crepe/index"
+	sitter "github.com/smacker/go-tree-sitter"
+	"github.com/smacker/go-tree-sitter/golang"
 	"go.uber.org/zap"
 )
 
@@ -16,6 +18,13 @@ func main() {
 	zap.ReplaceGlobals(zap.Must(cfg.Build()))
 	atom.SetLevel(zap.DebugLevel)
 
-	ix := index.Start()	
+	language := golang.GetLanguage()
+	parser := sitter.NewParser()
+	parser.SetLanguage(language)
+
+	ix, err := index.Start()
+	if err != nil {
+		panic(err)
+	}
 	ix.AddRepo(".")
 }
