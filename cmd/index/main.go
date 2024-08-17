@@ -1,8 +1,6 @@
 package main
 
 import (
-	"os"
-
 	"github.com/ngynkvn/crepe/crepe/index"
 	"go.uber.org/zap"
 )
@@ -10,7 +8,6 @@ import (
 var atom = zap.NewAtomicLevel()
 
 func main() {
-	println(os.Getwd())
 	cfg := zap.NewDevelopmentConfig()
 	cfg.Level = atom
 	zap.ReplaceGlobals(zap.Must(cfg.Build()))

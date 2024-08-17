@@ -3,11 +3,13 @@ package index
 import (
 	"context"
 	"errors"
+	"io"
+	"io/fs"
 	"net/http"
+	"os"
 	"path/filepath"
 	"slices"
 
-	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/golang"
@@ -28,20 +30,26 @@ func New() (*Indexer, error) {
 	}, nil
 }
 
-func (ix Indexer) AddFile(f *object.File) error {
+// func (ix Indexer) AddFile(f *object.File) error {
+func (ix Indexer) AddFile(fp string) error {
 	log := zap.S().With("pkg", "crepe/index")
-	ext := filepath.Ext(f.Name)
+	ext := filepath.Ext(fp)
 
 	parser, err := getTreesitterParser(ext)
 	if err != nil {
 		return err
 	}
-	contents, err := f.Contents()
+	f, err := os.Open(fp)
 	if err != nil {
 		return err
 	}
 
-	tree, err := parser.ParseCtx(context.TODO(), nil, []byte(contents))
+	contents, err := io.ReadAll(f)
+	if err != nil {
+		return err
+	}
+
+	tree, err := parser.ParseCtx(context.TODO(), nil, contents)
 	if err != nil {
 		return err
 	}
@@ -51,41 +59,44 @@ func (ix Indexer) AddFile(f *object.File) error {
 	walk(tree.RootNode(), (func(n *sitter.Node) {
 		// TODO: slice should be determined by extension
 		if slices.Contains(allowedGoNodeTypes, n.Type()) {
-			ix.db.AddFile(f.Name, n.Type(), ext, n.Content([]byte(contents)))
+			ix.db.AddFile(fp, n.Type(), ext, n.Content([]byte(contents)))
 		}
 	}))
 	return nil
 }
 
-func (ix Indexer) AddRepo(path string) error {
+func (ix Indexer) AddRepo(repoPath string) error {
 	log := zap.S()
-	log.With("path", path).Info("checking path")
-	// Check that path is valid git repository
-	// It is either a url to a git repo, or it is a local path.
 	// TODO: add support for link to github repos
-	repo, err := git.PlainOpen(path)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	treeObjects, err := repo.TreeObjects()
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	// Iterate over all files in the repository
-	// and add them to the slice
-	files, err := getAllObjectFiles(treeObjects)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
 
 	// Iterate over all files and add them to the index
-	for _, f := range files {
-		log.With("path", path, "file", f.Name).Info("adding file to index")
-		ix.AddFile(f)
+	err := filepath.WalkDir(repoPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip the .git directory
+		if d.IsDir() && d.Name() == ".git" {
+			return filepath.SkipDir
+		}
+
+		// Process only regular files
+		if !d.IsDir() {
+			relPath, err := filepath.Rel(repoPath, path)
+			if err != nil {
+				log.Errorf("failed to get relative path: %w", err)
+				return err
+			}
+
+			// Here you can add your indexing logic
+			log.Infof("Indexing file: %s", relPath)
+			ix.AddFile(relPath)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Error(err)
+		return err
 	}
 	return nil
 }
