@@ -1,0 +1,8 @@
+services:
+  db:
+    image: "postgres:16.4-alpine3.20"
+    volumes:
+      - ./sql:/sql
+      - ./sql/init.sh:/docker-entrypoint-initdb.d/init.sh
+    environment:
+      POSTGRES_PASSWORD: password
