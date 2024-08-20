@@ -12,7 +12,7 @@ import (
 const addFile = `-- name: AddFile :one
 INSERT INTO cindex.code_files (
   repo_id, file_path, file_name, programming_language, contents, node_type
-) SELECT repo_id
+) SELECT id
        , $2
        , $3
        , $4
