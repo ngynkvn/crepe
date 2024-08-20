@@ -1,0 +1,10 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "sql/query/queries.sql"
+    schema: "sql/ddl/code.sql"
+    gen:
+      go:
+        package: cindex
+        out: sql/.gen/cindex
+        sql_package: "pgx/v5"
