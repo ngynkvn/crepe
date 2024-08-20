@@ -11,15 +11,16 @@ import (
 
 const addFile = `-- name: AddFile :one
 INSERT INTO code_files (
-  repo_id, file_path, file_name, programming_language, contents
+  repo_id, file_path, file_name, programming_language, contents, node_type
 ) SELECT repo_id
        , $2
        , $3
        , $4
        , $5
+       , $6
   FROM code_repositories
   WHERE repo=$1
-RETURNING id, repo_id, file_path, file_name, programming_language, contents, created_at, updated_at
+RETURNING id, repo_id, file_path, file_name, programming_language, contents, node_type, created_at, updated_at
 `
 
 type AddFileParams struct {
@@ -28,6 +29,7 @@ type AddFileParams struct {
 	FileName            string
 	ProgrammingLanguage string
 	Contents            string
+	NodeType            string
 }
 
 func (q *Queries) AddFile(ctx context.Context, arg AddFileParams) (CodeFile, error) {
@@ -37,6 +39,7 @@ func (q *Queries) AddFile(ctx context.Context, arg AddFileParams) (CodeFile, err
 		arg.FileName,
 		arg.ProgrammingLanguage,
 		arg.Contents,
+		arg.NodeType,
 	)
 	var i CodeFile
 	err := row.Scan(
@@ -46,6 +49,7 @@ func (q *Queries) AddFile(ctx context.Context, arg AddFileParams) (CodeFile, err
 		&i.FileName,
 		&i.ProgrammingLanguage,
 		&i.Contents,
+		&i.NodeType,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -74,7 +78,7 @@ func (q *Queries) AddRepo(ctx context.Context, arg AddRepoParams) (CodeRepositor
 }
 
 const getFileByName = `-- name: GetFileByName :one
-SELECT id, repo_id, file_path, file_name, programming_language, contents, created_at, updated_at 
+SELECT id, repo_id, file_path, file_name, programming_language, contents, node_type, created_at, updated_at 
 FROM code_files
 WHERE file_name = $1 LIMIT 1
 `
@@ -89,6 +93,7 @@ func (q *Queries) GetFileByName(ctx context.Context, fileName string) (CodeFile,
 		&i.FileName,
 		&i.ProgrammingLanguage,
 		&i.Contents,
+		&i.NodeType,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

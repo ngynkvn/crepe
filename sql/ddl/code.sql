@@ -17,6 +17,7 @@ CREATE TABLE code_files (
     file_name TEXT NOT NULL,
     programming_language TEXT NOT NULL,
     contents TEXT NOT NULL,
+    node_type TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

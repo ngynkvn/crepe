@@ -26,6 +26,7 @@ type CodeFile struct {
 	FileName            string
 	ProgrammingLanguage string
 	Contents            string
+	NodeType            string
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
 }
