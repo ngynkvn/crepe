@@ -10,7 +10,7 @@ import (
 )
 
 const addFile = `-- name: AddFile :one
-INSERT INTO code_files (
+INSERT INTO cindex.code_files (
   repo_id, file_path, file_name, programming_language, contents, node_type
 ) SELECT repo_id
        , $2
@@ -18,7 +18,7 @@ INSERT INTO code_files (
        , $4
        , $5
        , $6
-  FROM code_repositories
+  FROM cindex.code_repositories
   WHERE repo=$1
 RETURNING id, repo_id, file_path, file_name, programming_language, contents, node_type, created_at, updated_at
 `
@@ -32,7 +32,7 @@ type AddFileParams struct {
 	NodeType            string
 }
 
-func (q *Queries) AddFile(ctx context.Context, arg AddFileParams) (CodeFile, error) {
+func (q *Queries) AddFile(ctx context.Context, arg AddFileParams) (CindexCodeFile, error) {
 	row := q.db.QueryRow(ctx, addFile,
 		arg.Repo,
 		arg.FilePath,
@@ -41,7 +41,7 @@ func (q *Queries) AddFile(ctx context.Context, arg AddFileParams) (CodeFile, err
 		arg.Contents,
 		arg.NodeType,
 	)
-	var i CodeFile
+	var i CindexCodeFile
 	err := row.Scan(
 		&i.ID,
 		&i.RepoID,
@@ -57,7 +57,7 @@ func (q *Queries) AddFile(ctx context.Context, arg AddFileParams) (CodeFile, err
 }
 
 const addRepo = `-- name: AddRepo :one
-INSERT INTO code_repositories (
+INSERT INTO cindex.code_repositories (
   repo, repo_type
 ) VALUES (
   $1, $2
@@ -70,22 +70,22 @@ type AddRepoParams struct {
 	RepoType string
 }
 
-func (q *Queries) AddRepo(ctx context.Context, arg AddRepoParams) (CodeRepository, error) {
+func (q *Queries) AddRepo(ctx context.Context, arg AddRepoParams) (CindexCodeRepository, error) {
 	row := q.db.QueryRow(ctx, addRepo, arg.Repo, arg.RepoType)
-	var i CodeRepository
+	var i CindexCodeRepository
 	err := row.Scan(&i.ID, &i.Repo, &i.RepoType)
 	return i, err
 }
 
 const getFileByName = `-- name: GetFileByName :one
 SELECT id, repo_id, file_path, file_name, programming_language, contents, node_type, created_at, updated_at 
-FROM code_files
+FROM cindex.code_files
 WHERE file_name = $1 LIMIT 1
 `
 
-func (q *Queries) GetFileByName(ctx context.Context, fileName string) (CodeFile, error) {
+func (q *Queries) GetFileByName(ctx context.Context, fileName string) (CindexCodeFile, error) {
 	row := q.db.QueryRow(ctx, getFileByName, fileName)
-	var i CodeFile
+	var i CindexCodeFile
 	err := row.Scan(
 		&i.ID,
 		&i.RepoID,

@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type CodeElement struct {
+type CindexCodeElement struct {
 	ID          int32
 	FileID      int32
 	ElementType string
@@ -19,7 +19,7 @@ type CodeElement struct {
 	UpdatedAt   pgtype.Timestamptz
 }
 
-type CodeFile struct {
+type CindexCodeFile struct {
 	ID                  int32
 	RepoID              int32
 	FilePath            string
@@ -31,7 +31,7 @@ type CodeFile struct {
 	UpdatedAt           pgtype.Timestamptz
 }
 
-type CodeRepository struct {
+type CindexCodeRepository struct {
 	ID       int32
 	Repo     string
 	RepoType string
