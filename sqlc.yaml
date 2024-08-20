@@ -6,5 +6,5 @@ sql:
     gen:
       go:
         package: cindex
-        out: sql/.gen/cindex
+        out: sql/gen/cindex
         sql_package: "pgx/v5"
