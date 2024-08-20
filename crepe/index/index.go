@@ -11,6 +11,7 @@ import (
 	"slices"
 
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/ngynkvn/crepe/sql/gen/cindex"
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/golang"
 	"go.uber.org/zap"
@@ -31,7 +32,8 @@ func New() (*Indexer, error) {
 }
 
 // func (ix Indexer) AddFile(f *object.File) error {
-func (ix Indexer) AddFile(fp string) error {
+func (ix Indexer) AddFile(repo string, fp string) error {
+	ctx := context.TODO()
 	log := zap.S().With("pkg", "crepe/index")
 	ext := filepath.Ext(fp)
 
@@ -49,25 +51,42 @@ func (ix Indexer) AddFile(fp string) error {
 		return err
 	}
 
-	tree, err := parser.ParseCtx(context.TODO(), nil, contents)
+	tree, err := parser.ParseCtx(ctx, nil, contents)
 	if err != nil {
 		return err
 	}
-	log.Debug(contents)
-	log.Debug(tree.RootNode())
+	// log.Debug(contents)
+	// log.Debug(tree.RootNode())
 	// Walk the tree and add all nodes that are of a type that we want to index
 	walk(tree.RootNode(), (func(n *sitter.Node) {
 		// TODO: slice should be determined by extension
-		if slices.Contains(allowedGoNodeTypes, n.Type()) {
-			ix.db.AddFile(fp, n.Type(), ext, n.Content([]byte(contents)))
+		if !slices.Contains(allowedGoNodeTypes, n.Type()) {
+			return
+		}
+		err := ix.db.AddFile(
+			ctx,
+			repo,
+			fp,
+			n.Type(),
+			ext,
+			n.Content([]byte(contents)),
+		)
+		if err != nil {
+			log.Error(err)
 		}
 	}))
 	return nil
 }
 
 func (ix Indexer) AddRepo(repoPath string) error {
+	ctx := context.TODO()
 	log := zap.S()
 	// TODO: add support for link to github repos
+	// TODO: and find a more appropriate place for this.
+	ix.db.cindex.AddRepo(ctx, cindex.AddRepoParams{
+		Repo:     repoPath,
+		RepoType: "git",
+	})
 
 	// Iterate over all files and add them to the index
 	err := filepath.WalkDir(repoPath, func(path string, d fs.DirEntry, err error) error {
@@ -90,7 +109,7 @@ func (ix Indexer) AddRepo(repoPath string) error {
 
 			// Here you can add your indexing logic
 			log.Infof("Indexing file: %s", relPath)
-			ix.AddFile(relPath)
+			ix.AddFile(repoPath, relPath)
 		}
 		return nil
 	})

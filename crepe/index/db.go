@@ -1,60 +1,48 @@
 package index
 
 import (
-	"database/sql"
+	"context"
 	"encoding/json"
 	"net/http"
 
-	"github.com/jmoiron/sqlx"
-	"github.com/marcboeker/go-duckdb"
+	"github.com/jackc/pgx/v5"
+	"github.com/ngynkvn/crepe/sql/gen/cindex"
 )
 
 // TODO: make this a proper interface
 type DB struct {
-	*sqlx.DB
+	conn   *pgx.Conn
+	cindex *cindex.Queries
+}
+
+func DefaultDSN() string {
+	return "postgres://postgres:postgres@localhost/postgres?sslmode=disable"
 }
 
 func NewDB() (*DB, error) {
-	connector, err := duckdb.NewConnector("crepe.db", nil)
-	sdb := sql.OpenDB(connector)
-	db := sqlx.NewDb(sdb, "duckdb")
+	conn, err := pgx.Connect(context.TODO(), DefaultDSN())
 	if err != nil {
 		return nil, err
 	}
-	initDB(db)
+	cindex := cindex.New(conn)
 	return &DB{
-		db,
+		conn:   conn,
+		cindex: cindex,
 	}, nil
 }
 
-func initDB(conn *sqlx.DB) {
-	// TODO: make this a proper migration system
-	conn.MustExec(`
-		DROP TABLE IF EXISTS tokens;
-		DROP TABLE IF EXISTS named_node_types;
-
-		CREATE TABLE tokens (
-			filename TEXT,
-			type TEXT,
-			language TEXT,
-			contents TEXT 
-		);
-		CREATE TABLE named_node_types (
-			name TEXT,
-			ext TEXT
-		);
-	`)
-}
-
-func (db *DB) AddFile(filename string, nodetype string, ext string, contents string) error {
-	_, err := db.Exec(`
-			INSERT INTO tokens (filename, type, language, contents) 
-			VALUES (?, ?, ?, ?)`,
-		filename,
-		nodetype,
-		ext,
-		contents,
-	)
+// TODO: This should ideally accept a struct as the second parameter which we can then map to the DB Insert
+// AddFile(ctx, FileInfo{...})
+func (db *DB) AddFile(ctx context.Context, repo string, filename string, nodetype string, ext string, contents string) error {
+	_, err := db.cindex.AddFile(ctx, cindex.AddFileParams{
+		Repo: repo,
+		// TODO: Distinguish
+		FilePath:            filename,
+		FileName:            filename,
+		ProgrammingLanguage: ext,
+		Contents:            contents,
+		NodeType:            nodetype,
+	})
 	return err
 }
 
@@ -78,7 +66,7 @@ func (db *DB) tokens(w http.ResponseWriter, r *http.Request) {
 		Contents string `json:"contents"`
 	}
 	var tokens []TokenJSON
-	db.Select(&tokens, "SELECT * FROM tokens")
+	// db.Select(&tokens, "SELECT * FROM tokens")
 
 	writeJSON(w, tokens)
 }
