@@ -9,7 +9,7 @@ import (
 )
 
 type CodeElement struct {
-	ID          pgtype.Int4
+	ID          int32
 	FileID      int32
 	ElementType string
 	ElementName string
@@ -20,7 +20,7 @@ type CodeElement struct {
 }
 
 type CodeFile struct {
-	ID                  pgtype.Int4
+	ID                  int32
 	RepoID              int32
 	FilePath            string
 	FileName            string
@@ -32,7 +32,7 @@ type CodeFile struct {
 }
 
 type CodeRepository struct {
-	ID       pgtype.Int4
+	ID       int32
 	Repo     string
 	RepoType string
 }
