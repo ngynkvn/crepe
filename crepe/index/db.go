@@ -31,18 +31,10 @@ func NewDB() (*DB, error) {
 	}, nil
 }
 
-// TODO: This should ideally accept a struct as the second parameter which we can then map to the DB Insert
+// TODO: This should ideally accept a different struct as the second parameter which we can then map to the DB Insert
 // AddFile(ctx, FileInfo{...})
-func (db *DB) AddFile(ctx context.Context, repo string, filename string, nodetype string, ext string, contents string) error {
-	_, err := db.cindex.AddFile(ctx, cindex.AddFileParams{
-		Repo: repo,
-		// TODO: Distinguish
-		FilePath:            filename,
-		FileName:            filename,
-		ProgrammingLanguage: ext,
-		Contents:            contents,
-		NodeType:            nodetype,
-	})
+func (db *DB) AddFile(ctx context.Context, params cindex.AddFileParams) error {
+	_, err := db.cindex.AddFile(ctx, params)
 	return err
 }
 

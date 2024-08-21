@@ -55,6 +55,18 @@ func (ix Indexer) AddFile(repo string, fp string) error {
 	if err != nil {
 		return err
 	}
+	_, err = ix.db.cindex.AddFile(
+		ctx,
+		cindex.AddFileParams{
+			Repo:                repo,
+			FilePath:            fp,
+			FileName:            fp,
+			ProgrammingLanguage: ext,
+			Contents:            string(contents),
+		})
+	if err != nil {
+		return err
+	}
 	// log.Debug(contents)
 	// log.Debug(tree.RootNode())
 	// Walk the tree and add all nodes that are of a type that we want to index
@@ -63,14 +75,16 @@ func (ix Indexer) AddFile(repo string, fp string) error {
 		if !slices.Contains(allowedGoNodeTypes, n.Type()) {
 			return
 		}
-		err := ix.db.AddFile(
-			ctx,
-			repo,
-			fp,
-			n.Type(),
-			ext,
-			n.Content([]byte(contents)),
-		)
+		start := n.StartPoint()
+		end := n.EndPoint()
+		_, err := ix.db.cindex.AddCodeElement(ctx, cindex.AddCodeElementParams{
+			FileName:    fp,
+			ElementType: n.Type(),
+			Contents:    n.Content(contents),
+			// TODO
+			StartLine: int32(start.Row),
+			EndLine:   int32(end.Row),
+		})
 		if err != nil {
 			log.Error(err)
 		}
