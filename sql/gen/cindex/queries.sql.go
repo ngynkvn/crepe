@@ -9,18 +9,57 @@ import (
 	"context"
 )
 
+const addCodeElement = `-- name: AddCodeElement :one
+INSERT INTO cindex.code_elements (
+  file_id, element_type, start_line, end_line
+) SELECT id
+       , $2
+       , $3
+       , $4
+  FROM cindex.code_files
+  WHERE file_name=$1
+RETURNING id, file_id, element_type, element_name, start_line, end_line, created_at, updated_at
+`
+
+type AddCodeElementParams struct {
+	FileName    string
+	ElementType string
+	StartLine   int32
+	EndLine     int32
+}
+
+func (q *Queries) AddCodeElement(ctx context.Context, arg AddCodeElementParams) (CindexCodeElement, error) {
+	row := q.db.QueryRow(ctx, addCodeElement,
+		arg.FileName,
+		arg.ElementType,
+		arg.StartLine,
+		arg.EndLine,
+	)
+	var i CindexCodeElement
+	err := row.Scan(
+		&i.ID,
+		&i.FileID,
+		&i.ElementType,
+		&i.ElementName,
+		&i.StartLine,
+		&i.EndLine,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const addFile = `-- name: AddFile :one
 INSERT INTO cindex.code_files (
-  repo_id, file_path, file_name, programming_language, contents, node_type
+  repo_id, file_path, file_name, programming_language, contents
 ) SELECT id
        , $2
        , $3
        , $4
        , $5
-       , $6
   FROM cindex.code_repositories
   WHERE repo=$1
-RETURNING id, repo_id, file_path, file_name, programming_language, contents, node_type, created_at, updated_at
+RETURNING id, repo_id, file_path, file_name, programming_language, contents, created_at, updated_at
 `
 
 type AddFileParams struct {
@@ -29,7 +68,6 @@ type AddFileParams struct {
 	FileName            string
 	ProgrammingLanguage string
 	Contents            string
-	NodeType            string
 }
 
 func (q *Queries) AddFile(ctx context.Context, arg AddFileParams) (CindexCodeFile, error) {
@@ -39,7 +77,6 @@ func (q *Queries) AddFile(ctx context.Context, arg AddFileParams) (CindexCodeFil
 		arg.FileName,
 		arg.ProgrammingLanguage,
 		arg.Contents,
-		arg.NodeType,
 	)
 	var i CindexCodeFile
 	err := row.Scan(
@@ -49,7 +86,6 @@ func (q *Queries) AddFile(ctx context.Context, arg AddFileParams) (CindexCodeFil
 		&i.FileName,
 		&i.ProgrammingLanguage,
 		&i.Contents,
-		&i.NodeType,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -78,7 +114,7 @@ func (q *Queries) AddRepo(ctx context.Context, arg AddRepoParams) (CindexCodeRep
 }
 
 const getFileByName = `-- name: GetFileByName :one
-SELECT id, repo_id, file_path, file_name, programming_language, contents, node_type, created_at, updated_at 
+SELECT id, repo_id, file_path, file_name, programming_language, contents, created_at, updated_at 
 FROM cindex.code_files
 WHERE file_name = $1 LIMIT 1
 `
@@ -93,7 +129,6 @@ func (q *Queries) GetFileByName(ctx context.Context, fileName string) (CindexCod
 		&i.FileName,
 		&i.ProgrammingLanguage,
 		&i.Contents,
-		&i.NodeType,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
