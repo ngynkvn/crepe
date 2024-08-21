@@ -26,11 +26,12 @@ RETURNING *;
 
 -- name: AddCodeElement :one
 INSERT INTO cindex.code_elements (
-  file_id, element_type, start_line, end_line
+  file_id, element_type, start_line, end_line, contents
 ) SELECT id
        , $2
        , $3
        , $4
+       , $5
   FROM cindex.code_files
   WHERE file_name=$1
 RETURNING *;

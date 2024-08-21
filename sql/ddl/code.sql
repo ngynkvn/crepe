@@ -24,7 +24,7 @@ CREATE TABLE cindex.code_elements (
     id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     file_id INTEGER NOT NULL REFERENCES code_files(id),
     element_type TEXT NOT NULL, -- e.g., 'function', 'method', 'class'
-    element_name TEXT NOT NULL,
+    contents TEXT NOT NULL,
     start_line INTEGER NOT NULL,
     end_line INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -35,5 +35,4 @@ CREATE TABLE cindex.code_elements (
 CREATE INDEX ON cindex.code_files (file_name);
 CREATE INDEX ON cindex.code_files (programming_language);
 CREATE INDEX ON cindex.code_elements (element_type);
-CREATE INDEX ON cindex.code_elements (element_name);
 CREATE INDEX ON cindex.code_elements (file_id);

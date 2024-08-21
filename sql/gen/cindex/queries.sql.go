@@ -11,14 +11,15 @@ import (
 
 const addCodeElement = `-- name: AddCodeElement :one
 INSERT INTO cindex.code_elements (
-  file_id, element_type, start_line, end_line
+  file_id, element_type, start_line, end_line, contents
 ) SELECT id
        , $2
        , $3
        , $4
+       , $5
   FROM cindex.code_files
   WHERE file_name=$1
-RETURNING id, file_id, element_type, element_name, start_line, end_line, created_at, updated_at
+RETURNING id, file_id, element_type, contents, start_line, end_line, created_at, updated_at
 `
 
 type AddCodeElementParams struct {
@@ -26,6 +27,7 @@ type AddCodeElementParams struct {
 	ElementType string
 	StartLine   int32
 	EndLine     int32
+	Contents    string
 }
 
 func (q *Queries) AddCodeElement(ctx context.Context, arg AddCodeElementParams) (CindexCodeElement, error) {
@@ -34,13 +36,14 @@ func (q *Queries) AddCodeElement(ctx context.Context, arg AddCodeElementParams) 
 		arg.ElementType,
 		arg.StartLine,
 		arg.EndLine,
+		arg.Contents,
 	)
 	var i CindexCodeElement
 	err := row.Scan(
 		&i.ID,
 		&i.FileID,
 		&i.ElementType,
-		&i.ElementName,
+		&i.Contents,
 		&i.StartLine,
 		&i.EndLine,
 		&i.CreatedAt,

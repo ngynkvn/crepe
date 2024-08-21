@@ -12,7 +12,7 @@ type CindexCodeElement struct {
 	ID          int32
 	FileID      int32
 	ElementType string
-	ElementName string
+	Contents    string
 	StartLine   int32
 	EndLine     int32
 	CreatedAt   pgtype.Timestamptz
