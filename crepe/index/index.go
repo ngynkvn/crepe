@@ -67,8 +67,7 @@ func (ix Indexer) AddFile(repo string, fp string) error {
 	if err != nil {
 		return err
 	}
-	// log.Debug(contents)
-	// log.Debug(tree.RootNode())
+
 	// Walk the tree and add all nodes that are of a type that we want to index
 	walk(tree.RootNode(), (func(n *sitter.Node) {
 		// TODO: slice should be determined by extension
@@ -81,9 +80,8 @@ func (ix Indexer) AddFile(repo string, fp string) error {
 			FileName:    fp,
 			ElementType: n.Type(),
 			Contents:    n.Content(contents),
-			// TODO
-			StartLine: int32(start.Row),
-			EndLine:   int32(end.Row),
+			StartLine:   int32(start.Row),
+			EndLine:     int32(end.Row),
 		})
 		if err != nil {
 			log.Error(err)

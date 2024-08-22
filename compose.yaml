@@ -9,3 +9,9 @@ services:
       POSTGRES_PASSWORD: postgres
     ports:
       - 5432:5432
+  prom:
+    image: prom/prometheus:latest
+    ports:
+      - 9090:9090
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
