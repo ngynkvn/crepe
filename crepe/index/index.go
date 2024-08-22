@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/ngynkvn/crepe/sql/gen/cindex"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/golang"
 	"go.uber.org/zap"
@@ -137,6 +138,7 @@ func (ix Indexer) Serve() error {
 	srv := http.NewServeMux()
 	ix.db.Mount(srv)
 	log.Info("starting server")
+	srv.Handle("/metrics", promhttp.Handler())
 	return http.ListenAndServe(":8080", srv)
 }
 

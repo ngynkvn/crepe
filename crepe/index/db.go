@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/ngynkvn/crepe/sql/gen/cindex"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 // TODO: make this a proper interface
@@ -20,7 +23,13 @@ func DefaultDSN() string {
 }
 
 func NewDB() (*DB, error) {
-	conn, err := pgx.Connect(context.TODO(), DefaultDSN())
+	cfg, err := pgx.ParseConfig(DefaultDSN())
+	if err != nil {
+		return nil, err
+	}
+	cfg.Tracer = newTracer()
+
+	conn, err := pgx.ConnectConfig(context.TODO(), cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -70,3 +79,39 @@ func (db *DB) Mount(srv *http.ServeMux) *http.ServeMux {
 
 // TODO: make this configurable on what indexer selects to parse from tree-sitter grammar.
 // Scrape node types from https://github.com/tree-sitter/tree-sitter-go/blob/master/src/node-types.json
+
+type tracer struct {
+	numQueries prometheus.Counter
+	queryTime  prometheus.Summary
+}
+
+func newTracer() *tracer {
+	return &tracer{
+		numQueries: promauto.NewCounter(prometheus.CounterOpts{
+			Namespace: "cindex",
+			Subsystem: "query",
+			Name:      "count",
+			Help:      "",
+		}),
+		queryTime: prometheus.NewSummary(prometheus.SummaryOpts{
+			Namespace: "cindex",
+			Subsystem: "query",
+			Name:      "time",
+			Help:      "",
+		}),
+	}
+}
+
+type startQueryTimeKey struct{}
+
+func (t *tracer) TraceQueryStart(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
+	t.numQueries.Inc()
+	ctx = context.WithValue(ctx, startQueryTimeKey{}, time.Now())
+	return ctx
+}
+
+func (t *tracer) TraceQueryEnd(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryEndData) {
+	if val, ok := ctx.Value(startQueryTimeKey{}).(time.Time); ok {
+		t.queryTime.Observe(time.Since(val).Seconds())
+	}
+}
