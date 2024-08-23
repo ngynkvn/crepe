@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/ngynkvn/crepe/sql/gen/cindex"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	sitter "github.com/smacker/go-tree-sitter"
@@ -138,19 +137,17 @@ func (ix Indexer) Serve() error {
 	srv := http.NewServeMux()
 	ix.db.Mount(srv)
 	log.Info("starting server")
+
+	srv.Handle("GET /repositories", http.HandlerFunc(ix.HandleGetRepositories))
+	srv.Handle("POST /repositories", http.HandlerFunc(ix.HandlePostRepositories))
+
+	srv.Handle("GET /repositories/{repoId}", http.HandlerFunc(ix.HandleGetRepositoriesRepoId))
+	srv.Handle("DELETE /repositories/{repoId}", http.HandlerFunc(ix.HandleDeleteRepositoriesRepoId))
+
+	srv.Handle("GET /search", http.HandlerFunc(ix.HandleSearch))
+
 	srv.Handle("/metrics", promhttp.Handler())
 	return http.ListenAndServe("0.0.0.0:8080", srv)
-}
-
-func getAllObjectFiles(treeObjects *object.TreeIter) ([]*object.File, error) {
-	var files []*object.File
-	err := treeObjects.ForEach(func(t *object.Tree) error {
-		return t.Files().ForEach(func(f *object.File) error {
-			files = append(files, f)
-			return nil
-		})
-	})
-	return files, err
 }
 
 var allowedGoNodeTypes = []string{
