@@ -120,7 +120,6 @@ func (ix Indexer) AddRepo(repoPath string) error {
 				return err
 			}
 
-			// Here you can add your indexing logic
 			log.Infof("Indexing file: %s", relPath)
 			ix.AddFile(repoPath, relPath)
 		}
@@ -135,11 +134,12 @@ func (ix Indexer) AddRepo(repoPath string) error {
 
 func (ix Indexer) Serve() error {
 	log := zap.S()
+
 	srv := http.NewServeMux()
 	ix.db.Mount(srv)
 	log.Info("starting server")
 	srv.Handle("/metrics", promhttp.Handler())
-	return http.ListenAndServe(":8080", srv)
+	return http.ListenAndServe("0.0.0.0:8080", srv)
 }
 
 func getAllObjectFiles(treeObjects *object.TreeIter) ([]*object.File, error) {
