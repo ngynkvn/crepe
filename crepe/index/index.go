@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"slices"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/ngynkvn/crepe/sql/gen/cindex"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	sitter "github.com/smacker/go-tree-sitter"
@@ -134,20 +136,21 @@ func (ix Indexer) AddRepo(repoPath string) error {
 func (ix Indexer) Serve() error {
 	log := zap.S()
 
-	srv := http.NewServeMux()
-	ix.db.Mount(srv)
+	r := chi.NewRouter()
+	r.Use(middleware.Logger)
+
+	r.Route("/repositories", func(r chi.Router) {
+		r.Get("/", http.HandlerFunc(ix.HandleGetRepositories))
+		r.Post("/", http.HandlerFunc(ix.HandlePostRepositories))
+		r.Get("/{repoId}", http.HandlerFunc(ix.HandleGetRepositoriesRepoId))
+		r.Delete("/{repoId}", http.HandlerFunc(ix.HandleDeleteRepositoriesRepoId))
+	})
+
+	r.Get("/search", http.HandlerFunc(ix.HandleSearch))
+	r.Get("/metrics", promhttp.Handler().ServeHTTP)
+
 	log.Info("starting server")
-
-	srv.Handle("GET /repositories", http.HandlerFunc(ix.HandleGetRepositories))
-	srv.Handle("POST /repositories", http.HandlerFunc(ix.HandlePostRepositories))
-
-	srv.Handle("GET /repositories/{repoId}", http.HandlerFunc(ix.HandleGetRepositoriesRepoId))
-	srv.Handle("DELETE /repositories/{repoId}", http.HandlerFunc(ix.HandleDeleteRepositoriesRepoId))
-
-	srv.Handle("GET /search", http.HandlerFunc(ix.HandleSearch))
-
-	srv.Handle("/metrics", promhttp.Handler())
-	return http.ListenAndServe("0.0.0.0:8080", srv)
+	return http.ListenAndServe("0.0.0.0:8080", r)
 }
 
 var allowedGoNodeTypes = []string{
