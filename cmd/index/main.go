@@ -17,6 +17,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	ix.AddRepo(".")
+	ix.Clear()
+	ix.AddRepo("crepe", ".")
 	ix.Serve()
 }

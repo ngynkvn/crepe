@@ -4,10 +4,12 @@ CREATE SCHEMA cindex;
 
 CREATE TABLE cindex.code_repositories (
     id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    repo TEXT NOT NULL,
+    repo_name TEXT NOT NULL,
+    url TEXT NOT NULL,
     repo_type TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(repo_name, url, repo_type)
 );
 
 CREATE TABLE cindex.code_files (

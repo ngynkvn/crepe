@@ -5,18 +5,14 @@ import (
 	"errors"
 	"io"
 	"io/fs"
-	"net/http"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/ngynkvn/crepe/sql/gen/cindex"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/golang"
-	"go.uber.org/zap"
 )
 
 type Indexer struct {
@@ -33,10 +29,9 @@ func New() (*Indexer, error) {
 	}, nil
 }
 
-// func (ix Indexer) AddFile(f *object.File) error {
-func (ix Indexer) AddFile(repo string, fp string) error {
+func (ix Indexer) AddFile(repoUrl string, fp string) error {
 	ctx := context.TODO()
-	log := zap.S().With("pkg", "crepe/index")
+	log := slog.Default().With("pkg", "crepe/index")
 	ext := filepath.Ext(fp)
 
 	parser, err := getTreesitterParser(ext)
@@ -60,7 +55,7 @@ func (ix Indexer) AddFile(repo string, fp string) error {
 	_, err = ix.db.cindex.AddFile(
 		ctx,
 		cindex.AddFileParams{
-			Repo:                repo,
+			Url:                 repoUrl,
 			FilePath:            fp,
 			FileName:            fp,
 			ProgrammingLanguage: ext,
@@ -86,24 +81,32 @@ func (ix Indexer) AddFile(repo string, fp string) error {
 			EndLine:     int32(end.Row),
 		})
 		if err != nil {
-			log.Error(err)
+			log.Error(err.Error())
 		}
 	}))
 	return nil
 }
 
-func (ix Indexer) AddRepo(repoPath string) error {
+func (ix Indexer) Clear() {
+	_, err := ix.db.conn.Exec(context.Background(), "TRUNCATE cindex.code_repositories CASCADE;")
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (ix Indexer) AddRepo(name, repoUrl string) error {
 	ctx := context.TODO()
-	log := zap.S()
+	log := slog.Default()
 	// TODO: add support for link to github repos
 	// TODO: and find a more appropriate place for this.
 	ix.db.cindex.AddRepo(ctx, cindex.AddRepoParams{
-		Repo:     repoPath,
+		RepoName: name,
+		Url:      repoUrl,
 		RepoType: "git",
 	})
 
 	// Iterate over all files and add them to the index
-	err := filepath.WalkDir(repoPath, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(repoUrl, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -115,42 +118,25 @@ func (ix Indexer) AddRepo(repoPath string) error {
 
 		// Process only regular files
 		if !d.IsDir() {
-			relPath, err := filepath.Rel(repoPath, path)
+			relPath, err := filepath.Rel(repoUrl, path)
 			if err != nil {
-				log.Errorf("failed to get relative path: %w", err)
+				log.Error("failed to get relative path", "error", err)
 				return err
 			}
 
-			log.Infof("Indexing file: %s", relPath)
-			ix.AddFile(repoPath, relPath)
+			log.Info("Indexing file", "file", relPath)
+			err = ix.AddFile(repoUrl, relPath)
+			if err != nil && !errors.Is(err, errUnknownFileExtension) {
+				log.Error("Failed to index", "error", err)
+			}
 		}
 		return nil
 	})
 	if err != nil {
-		log.Error(err)
+		log.Error(err.Error())
 		return err
 	}
 	return nil
-}
-
-func (ix Indexer) Serve() error {
-	log := zap.S()
-
-	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-
-	r.Route("/repositories", func(r chi.Router) {
-		r.Get("/", http.HandlerFunc(ix.HandleGetRepositories))
-		r.Post("/", http.HandlerFunc(ix.HandlePostRepositories))
-		r.Get("/{repoId}", http.HandlerFunc(ix.HandleGetRepositoriesRepoId))
-		r.Delete("/{repoId}", http.HandlerFunc(ix.HandleDeleteRepositoriesRepoId))
-	})
-
-	r.Get("/search", http.HandlerFunc(ix.HandleSearch))
-	r.Get("/metrics", promhttp.Handler().ServeHTTP)
-
-	log.Info("starting server")
-	return http.ListenAndServe("0.0.0.0:8080", r)
 }
 
 var allowedGoNodeTypes = []string{
@@ -172,12 +158,14 @@ func getTreesitterParser(ext string) (*sitter.Parser, error) {
 	return parser, nil
 }
 
+var errUnknownFileExtension = errors.New("unknown file extension")
+
 func getLanguage(ext string) (*sitter.Language, error) {
 	switch ext {
 	case ".go":
 		return golang.GetLanguage(), nil
 	default:
-		return nil, errors.New("unknown file extension")
+		return nil, errUnknownFileExtension
 	}
 }
 

@@ -4,6 +4,7 @@ go 1.22.0
 
 require (
 	github.com/go-chi/chi/v5 v5.1.0
+	github.com/go-chi/httplog/v2 v2.1.1
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/prometheus/client_golang v1.20.1
 	github.com/smacker/go-tree-sitter v0.0.0-20240625050157-a31a98a7c0f6

@@ -9,29 +9,32 @@ import (
 )
 
 type CindexCodeElement struct {
-	ID          int32
-	FileID      int32
-	ElementType string
-	Contents    string
-	StartLine   int32
-	EndLine     int32
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
+	ID          int32              `json:"id"`
+	FileID      int32              `json:"file_id"`
+	ElementType string             `json:"element_type"`
+	Contents    string             `json:"contents"`
+	StartLine   int32              `json:"start_line"`
+	EndLine     int32              `json:"end_line"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
 type CindexCodeFile struct {
-	ID                  int32
-	RepoID              int32
-	FilePath            string
-	FileName            string
-	ProgrammingLanguage string
-	Contents            string
-	CreatedAt           pgtype.Timestamptz
-	UpdatedAt           pgtype.Timestamptz
+	ID                  int32              `json:"id"`
+	RepoID              int32              `json:"repo_id"`
+	FilePath            string             `json:"file_path"`
+	FileName            string             `json:"file_name"`
+	ProgrammingLanguage string             `json:"programming_language"`
+	Contents            string             `json:"contents"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
 }
 
 type CindexCodeRepository struct {
-	ID       int32
-	Repo     string
-	RepoType string
+	ID        int32              `json:"id"`
+	RepoName  string             `json:"repo_name"`
+	Url       string             `json:"url"`
+	RepoType  string             `json:"repo_type"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }

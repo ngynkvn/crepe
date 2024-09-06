@@ -1,5 +1,5 @@
 echo "STARTING COPY"
 
-pushd /sql
+pushd /sql || exit
 psql -f ./ddl/code.sql
-popd
+popd || exit

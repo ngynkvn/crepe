@@ -8,3 +8,4 @@ sql:
         package: cindex
         out: sql/gen/cindex
         sql_package: "pgx/v5"
+        emit_json_tags: true
